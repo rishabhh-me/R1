@@ -27,7 +27,7 @@ class SubgoalWrapper(gym.Wrapper):
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
-        self.current_subgoal_id = 0 # Reset to NO_OP
+        # self.current_subgoal_id = 0 # Reset to NO_OP -> We want to persist subgoal for training phase if set
         return self._get_obs(obs), info
 
     def step(self, action):
@@ -36,7 +36,11 @@ class SubgoalWrapper(gym.Wrapper):
         # Check if subgoal is complete (This needs external feedback or internal logic)
         # For Phase 0, we assume the Planner/Agent loop handles "when to switch subgoal"
         # or we check it here. Let's provide a 'subgoal_completed' flag in info.
-        info['subgoal_completed'] = self._check_subgoal_completion(obs)
+        is_complete = self._check_subgoal_completion(obs)
+        info['subgoal_completed'] = is_complete
+
+        if is_complete:
+            reward += 1.0  # Intrinsic reward for completing the subgoal
 
         return self._get_obs(obs), reward, terminated, truncated, info
 

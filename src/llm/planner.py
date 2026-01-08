@@ -27,14 +27,18 @@ class MockPlanner(BasePlanner):
         # 2. If carrying key and see door -> Open door
         # 3. If door is open -> Go to goal
 
-        if "carrying" in desc and "key" in desc:
+        # Correctly check for carrying key vs carrying nothing
+        is_carrying_key = "carrying" in desc and "key" in desc and "carrying nothing" not in desc
+        is_carrying_nothing = "carrying nothing" in desc
+
+        if is_carrying_key:
             if "closed" in desc and "door" in desc:
                 # Find color of door if possible, else generic
                 return "Open the door"
             else:
                 return "Go to the goal"
 
-        if "key" in desc and "carrying nothing" in desc:
+        if "key" in desc and is_carrying_nothing:
             return "Pick up the key"
 
         if "goal" in desc:
@@ -75,8 +79,22 @@ class Phi2Planner(BasePlanner):
             pass
 
     def generate_subgoal(self, state_description: str) -> str:
-        # Simple prompt template
-        prompt = f"Objective: Reach the goal.\nCurrent State: {state_description}\nNext Subgoal:"
+        # Improved prompt with few-shot examples and rules
+        prompt = (
+            "Objective: Reach the goal.\n"
+            "Rules:\n"
+            "1. If you see a key and are carrying nothing, pick up the key.\n"
+            "2. If you have the key and see a door, open the door.\n"
+            "3. If the door is open, go to the goal.\n\n"
+            "Example 1:\n"
+            "Current State: You are carrying nothing. In the room, you see: yellow key, yellow door, green goal.\n"
+            "Next Subgoal: Pick up the yellow key\n\n"
+            "Example 2:\n"
+            "Current State: You are carrying a yellow key. In the room, you see: yellow door, green goal.\n"
+            "Next Subgoal: Open the yellow door\n\n"
+            f"Current State: {state_description}\n"
+            "Next Subgoal:"
+        )
 
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
 
